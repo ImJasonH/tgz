@@ -1,0 +1,81 @@
+<html>
+<head>
+<script type="text/javascript" src="tar.js"></script>
+<script type="text/javascript" src="gzip.js"></script>
+<style>
+div#drop {
+  width: 300px;
+  height: 300px;
+  border: 3px dashed red;
+}
+
+div#drop:hover {
+  border: 3px solid red;
+}
+</style>
+</head>
+<body>
+  <h1>Drag and drop files here to create a .tar.gz file</h1>
+  <div id="drop"></div>
+  <p>Your files never leave your computer, they are compressed entirely in the browser.</p>
+</body>
+<script type="text/javascript">
+var tape = new Tar(),
+    done = 0,
+    total = 0;
+
+var drop = document.getElementById('drop');
+drop.ondragover = function() { return false; };
+drop.ondragend = function() { return false; };
+drop.ondrop = function(e) {
+  e.stopPropagation();
+  e.preventDefault();
+
+  tape = new Tar();
+  done = 0;
+  total = e.dataTransfer.files.length;
+
+  var all = [];
+
+  for (var i = 0; i < e.dataTransfer.files.length; i++) {
+    var file = e.dataTransfer.files[i];
+    var reader = new FileReader();
+    reader.onload = callbackFor(all, file.name);
+    reader.readAsArrayBuffer(file);
+  }
+
+  return false;
+};
+
+function download(all) {
+  // Append all files to the output.
+  for (var i = 0; i < all.length; i++) {
+    var f = all[i];
+    tape.append(f.name, arrayBufferToUint8Array(f.contents));
+  }
+
+  // Download the file contents.
+  var base64 = btoa(uint8ToString(zip(tape.out)));
+  var el = document.createElement('a');
+  el.setAttribute('href', 'data:application/tar+gzip;base64,'+base64);
+  el.setAttribute('download', 'files.tar.gz');
+  el.style.display = 'none';
+  document.body.appendChild(el);
+  el.click();
+  document.body.removeChild(el);
+}
+
+function callbackFor(all, name) {
+  return function(e) {
+    all.push({
+      name: name,
+      contents: e.currentTarget.result
+    });
+    done++;
+    if (done == total) {
+      download(all);
+    }
+  };
+}
+</script>
+</html>
